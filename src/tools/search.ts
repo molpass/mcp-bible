@@ -14,11 +14,14 @@ function formatKeywordResults(
   return rows.map((r) => `${formatRef(r.verse_id)} (${r.version_id}): ${r.text}`).join("\n");
 }
 
-export async function runSearch(args: {
-  query: string;
-  mode?: "keyword" | "semantic";
-  limit?: number;
-}): Promise<ToolResult> {
+export async function runSearch(
+  args: {
+    query: string;
+    mode?: "keyword" | "semantic";
+    limit?: number;
+  },
+  opts: { embeddingsDir?: string } = {}
+): Promise<ToolResult> {
   const limit = args.limit ?? 10;
   const mode = args.mode ?? "keyword";
 
@@ -29,7 +32,7 @@ export async function runSearch(args: {
 
   // semantic
   try {
-    const rows = await semanticSearch(args.query, limit);
+    const rows = await semanticSearch(args.query, limit, opts.embeddingsDir);
     const text =
       rows.length === 0
         ? "검색 결과가 없습니다."

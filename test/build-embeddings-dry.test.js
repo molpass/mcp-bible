@@ -20,8 +20,13 @@ if (!existsSync(DB_PATH)) {
   process.exit(0);
 }
 
-test("dry-run completes without throwing", async () => {
+test("dry-run completes and writes NO new .bin (pre-existing real embeddings untouched)", async () => {
+  const listBins = () =>
+    (existsSync(EMB_DIR) ? readdirSync(EMB_DIR) : []).filter((f) => f.endsWith(".bin")).sort();
+  const before = listBins();
   await assert.doesNotReject(() => buildEmbeddings(DB_PATH, EMB_DIR, { dry: true }));
+  const added = listBins().filter((f) => !before.includes(f));
+  assert.deepStrictEqual(added, [], `dry run must not write .bin; newly added: ${added.join(", ")}`);
 });
 
 test("exactly 3 versions have embedded=1 (krv, bsb, kjv)", () => {
@@ -55,10 +60,4 @@ test("each embedded version has >30000 verses", () => {
   } finally {
     db.close();
   }
-});
-
-test("no .bin files exist in data/embeddings after dry run", () => {
-  const files = existsSync(EMB_DIR) ? readdirSync(EMB_DIR) : [];
-  const bins = files.filter((f) => f.endsWith(".bin"));
-  assert.strictEqual(bins.length, 0, `Unexpected .bin files: ${bins.join(", ")}`);
 });

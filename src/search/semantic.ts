@@ -22,9 +22,9 @@ interface LoadedVersion {
   count: number;
 }
 
-function loadVersionEmbeddings(versionId: string): LoadedVersion | null {
-  const binPath = join(EMBED_DIR, `${versionId}.bin`);
-  const idxPath = join(EMBED_DIR, `${versionId}.idx.json`);
+function loadVersionEmbeddings(versionId: string, dir: string): LoadedVersion | null {
+  const binPath = join(dir, `${versionId}.bin`);
+  const idxPath = join(dir, `${versionId}.idx.json`);
   if (!existsSync(binPath) || !existsSync(idxPath)) return null;
 
   const buf = readFileSync(binPath);
@@ -45,7 +45,8 @@ function dot(a: Float32Array, b: Float32Array, bOffset: number): number {
 
 export async function semanticSearch(
   query: string,
-  limit: number
+  limit: number,
+  embeddingsDir: string = EMBED_DIR
 ): Promise<{ verse_id: string; version_id: string; score: number; text: string }[]> {
   // Check token early (before loading files) to give a clear error.
   if (!process.env.DEEPINFRA_TOKEN) {
@@ -56,7 +57,7 @@ export async function semanticSearch(
   const embeddedRows = allRows("SELECT version_id FROM versions WHERE embedded=1");
   const loaded: LoadedVersion[] = [];
   for (const row of embeddedRows) {
-    const lv = loadVersionEmbeddings(String(row.version_id));
+    const lv = loadVersionEmbeddings(String(row.version_id), embeddingsDir);
     if (lv) loaded.push(lv);
   }
 

@@ -1,22 +1,21 @@
 /**
  * search.test.js — Tests for keyword + semantic search tools.
  * Requires data/bible.sqlite for keyword tests.
- * Semantic happy-path uses fixture .bin/.idx + mocked fetch.
+ * Semantic happy-path writes fixtures to an ISOLATED temp dir (never touches the real
+ * data/embeddings/ so precomputed .bin assets are safe) and mocks fetch.
  */
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, writeFileSync, unlinkSync } from "node:fs";
+import { existsSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, dirname } from "node:path";
+import { tmpdir } from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_PATH = join(__dirname, "..", "data", "bible.sqlite");
-const EMBED_DIR = join(__dirname, "..", "data", "embeddings");
 
 const SKIP = !existsSync(DB_PATH);
 const SKIP_MSG = "data/bible.sqlite not present — skipping search tests";
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const EMBED_DIM = 1024;
 
@@ -27,47 +26,34 @@ function unitVec(pos) {
   return v;
 }
 
-/** Write fixture .bin (N × 1024 Float32 LE) and .idx.json for a version. */
-function writeFixture(versionId, verseIds, vecs) {
+/** Write fixture .bin (N × 1024 Float32 LE) and .idx.json into `dir`. */
+function writeFixture(dir, versionId, verseIds, vecs) {
   const flat = new Float32Array(verseIds.length * EMBED_DIM);
   for (let i = 0; i < vecs.length; i++) flat.set(vecs[i], i * EMBED_DIM);
-  const buf = Buffer.from(flat.buffer);
-  writeFileSync(join(EMBED_DIR, `${versionId}.bin`), buf);
-  writeFileSync(join(EMBED_DIR, `${versionId}.idx.json`), JSON.stringify(verseIds));
-}
-
-/** Delete fixture files if they exist. */
-function deleteFixture(versionId) {
-  const bin = join(EMBED_DIR, `${versionId}.bin`);
-  const idx = join(EMBED_DIR, `${versionId}.idx.json`);
-  if (existsSync(bin)) unlinkSync(bin);
-  if (existsSync(idx)) unlinkSync(idx);
+  writeFileSync(join(dir, `${versionId}.bin`), Buffer.from(flat.buffer));
+  writeFileSync(join(dir, `${versionId}.idx.json`), JSON.stringify(verseIds));
 }
 
 const originalFetch = globalThis.fetch;
 let savedToken;
 
 afterEach(() => {
-  // Restore fetch and token after each test.
+  // Restore fetch and token after each test. (No real-dir fixtures are created,
+  // so there is nothing in data/embeddings/ to clean up — real .bin stays safe.)
   globalThis.fetch = originalFetch;
   if (savedToken === undefined) {
     delete process.env.DEEPINFRA_TOKEN;
   } else {
     process.env.DEEPINFRA_TOKEN = savedToken;
   }
-  deleteFixture("krv");
+  savedToken = undefined;
 });
-
-// ── Import tools (dynamic, post-build) ───────────────────────────────────────
 
 async function loadSearch() {
   return import("../dist/tools/search.js");
 }
-async function loadSemantic() {
-  return import("../dist/search/semantic.js");
-}
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
+// ── Keyword ────────────────────────────────────────────────────────────────
 
 test("keyword search '사랑' returns krv results containing '사랑'", async (t) => {
   if (SKIP) return t.skip(SKIP_MSG);
@@ -82,7 +68,7 @@ test("keyword search 'love' (default mode) returns English verse", async (t) => 
   const { runSearch } = await loadSearch();
   const result = await runSearch({ query: "love" });
   const text = result.content[0].text;
-  assert.ok(text.toLowerCase().includes("love"), `Expected 'love' in results, got: ${text.slice(0, 300)}`);
+  assert.ok(text.toLowerCase().includes("love"), `Expected 'love', got: ${text.slice(0, 300)}`);
 });
 
 test("keyword search respects limit", async (t) => {
@@ -90,63 +76,56 @@ test("keyword search respects limit", async (t) => {
   const { runSearch } = await loadSearch();
   const limit = 3;
   const result = await runSearch({ query: "사랑", mode: "keyword", limit });
-  const text = result.content[0].text;
-  // Count non-empty result lines (each has a verse ref).
-  const lines = text.split("\n").filter((l) => l.trim().length > 0);
-  assert.ok(
-    lines.length <= limit,
-    `Expected at most ${limit} result lines, got ${lines.length}: ${text}`
-  );
+  const lines = result.content[0].text.split("\n").filter((l) => l.trim().length > 0);
+  assert.ok(lines.length <= limit, `Expected ≤ ${limit} lines, got ${lines.length}`);
 });
 
-test("semantic fallback (no .bin, no token) prepends notice and returns keyword results", async (t) => {
+// ── Semantic ───────────────────────────────────────────────────────────────
+
+test("semantic fallback (no token) prepends notice and returns keyword results", async (t) => {
   if (SKIP) return t.skip(SKIP_MSG);
   savedToken = process.env.DEEPINFRA_TOKEN;
-  delete process.env.DEEPINFRA_TOKEN;
-  // No fixture files written — embedding files absent.
+  delete process.env.DEEPINFRA_TOKEN; // no token → SemanticUnavailable → keyword fallback
   const { runSearch } = await loadSearch();
   const result = await runSearch({ query: "사랑", mode: "semantic" });
   const text = result.content[0].text;
   const NOTICE = "ⓘ 의미 검색 인덱스/토큰이 준비되지 않아 키워드 검색으로 대체했습니다.";
-  assert.ok(text.startsWith(NOTICE), `Expected fallback notice at start, got: ${text.slice(0, 200)}`);
-  assert.ok(text.includes("사랑"), `Expected keyword results after notice, got: ${text.slice(0, 300)}`);
+  assert.ok(text.startsWith(NOTICE), `Expected fallback notice, got: ${text.slice(0, 200)}`);
+  assert.ok(text.includes("사랑"), `Expected keyword results after notice`);
 });
 
-test("semantic happy path (fixture + mocked fetch) ranks target verse first", async (t) => {
+test("semantic happy path (isolated temp fixture + mocked fetch) ranks target verse first", async (t) => {
   if (SKIP) return t.skip(SKIP_MSG);
 
-  // Three known verse_ids that exist in DB (KRV: John 3:16, Gen 1:1, Psa 23:1).
-  const verseIds = ["JHN.3.16", "GEN.1.1", "PSA.23.1"];
-  // vec at pos=0 for JHN.3.16, pos=1 for GEN.1.1, pos=2 for PSA.23.1.
-  const vecs = [unitVec(0), unitVec(1), unitVec(2)];
-  writeFixture("krv", verseIds, vecs);
+  // Isolated temp dir — real data/embeddings/ is never touched.
+  const tmp = mkdtempSync(join(tmpdir(), "mcpb-emb-"));
+  try {
+    // krv IS embedded=1 in the DB, so semanticSearch will load krv from our override dir.
+    const verseIds = ["JHN.3.16", "GEN.1.1", "PSA.23.1"];
+    writeFixture(tmp, "krv", verseIds, [unitVec(0), unitVec(1), unitVec(2)]);
 
-  // Set up env & mock fetch so embedBatch returns a vector closest to JHN.3.16 (pos=0).
-  savedToken = process.env.DEEPINFRA_TOKEN;
-  process.env.DEEPINFRA_TOKEN = "test-token";
+    savedToken = process.env.DEEPINFRA_TOKEN;
+    process.env.DEEPINFRA_TOKEN = "test-token";
 
-  // Query vector = unit vec at pos=0 → highest dot product with JHN.3.16's vec.
-  const queryVec = Array.from(unitVec(0));
-  globalThis.fetch = async (_url, _init) => ({
-    ok: true,
-    json: async () => ({
-      data: [{ embedding: queryVec }],
-    }),
-  });
+    // Mock fetch so embedBatch returns a vector closest to JHN.3.16 (pos=0).
+    const queryVec = Array.from(unitVec(0));
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ data: [{ embedding: queryVec }] }) });
 
-  const { runSearch } = await loadSearch();
-  // Force module cache miss isn't needed since semantic.ts re-reads files each call.
-  const result = await runSearch({ query: "요한복음 3장 16절", mode: "semantic", limit: 3 });
-  const text = result.content[0].text;
+    const { runSearch } = await loadSearch();
+    const result = await runSearch(
+      { query: "요한복음 3장 16절", mode: "semantic", limit: 3 },
+      { embeddingsDir: tmp }
+    );
+    const text = result.content[0].text;
 
-  // Should NOT start with fallback notice.
-  const NOTICE = "ⓘ 의미 검색 인덱스/토큰이 준비되지 않아 키워드 검색으로 대체했습니다.";
-  assert.ok(!text.startsWith(NOTICE), `Should not have fallback notice, got: ${text.slice(0, 200)}`);
-
-  // First line should reference JHN.3.16.
-  const firstLine = text.split("\n")[0];
-  assert.ok(
-    firstLine.includes("JHN.3.16") || firstLine.includes("John 3:16") || firstLine.includes("3:16"),
-    `Expected JHN.3.16 as top result, got first line: ${firstLine}`
-  );
+    const NOTICE = "ⓘ 의미 검색 인덱스/토큰이 준비되지 않아 키워드 검색으로 대체했습니다.";
+    assert.ok(!text.startsWith(NOTICE), `Should not fall back, got: ${text.slice(0, 200)}`);
+    const firstLine = text.split("\n")[0];
+    assert.ok(
+      firstLine.includes("JHN.3.16") || firstLine.includes("John 3:16") || firstLine.includes("3:16"),
+      `Expected JHN.3.16 first, got: ${firstLine}`
+    );
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });
