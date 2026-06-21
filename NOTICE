@@ -1,0 +1,75 @@
+mcp-bible — data sources, licenses, and attribution
+====================================================
+
+The mcp-bible CODE is licensed MIT (see LICENSE). The bundled/derived BIBLE DATA
+comes from the public sources below, each under its own license. Attribution and
+usage obligations are preserved here as required.
+
+The single distributable database (`data/bible.sqlite`) and the semantic-embedding
+files (`data/embeddings/*.bin`) are DERIVED from these sources and are published as
+GitHub Release assets (not committed to git). Every source below is public-domain or
+openly licensed, so the derived DB is redistributable; the obligations (attribution,
+no-text-alteration) carry through.
+
+--------------------------------------------------------------------
+TEXTS
+--------------------------------------------------------------------
+
+개역한글 (Korean Revised Version, 1961)  — version id: krv
+  Source : getbible.net API v2 (https://api.getbible.net/v2/)
+  License: Public Domain (text). 인격권 잔존.
+  Notes  : 본문을 변형하지 않습니다(no alteration of the text). 한국어 성경 표기·권리는
+           대한성서공회(Korean Bible Society) 관행을 따릅니다.
+
+Berean Standard Bible (BSB)  — version id: bsb
+  Source : Berean Bible, https://berean.bible / https://bereanbible.com
+  License: CC0 1.0 (public domain dedication).
+
+King James Version (KJV)  — version id: kjv
+  Source : scrollmapper/bible_databases (https://github.com/scrollmapper/bible_databases)
+  License: Public Domain.
+
+Hebrew Bible — Westminster Leningrad Codex + morphology  — version id: wlc
+  Source : OpenScriptures morphhb / OSHB (https://github.com/openscriptures/morphhb)
+  License: WLC text — Public Domain. Morphology & lemma tagging (OSHB) — CC BY 4.0
+           (© OpenScriptures / Open Scriptures Hebrew Bible contributors).
+
+Berean Greek New Testament (+ interlinear alignment)  — version id: berean-grk
+  Source : Berean Bible interlinear table, https://bereanbible.com
+  License: CC0 1.0.
+
+--------------------------------------------------------------------
+LEXICON
+--------------------------------------------------------------------
+
+Strong's Hebrew & Greek Dictionaries
+  Source : OpenScriptures Strongs (https://github.com/openscriptures/strongs)
+  License: Hebrew dictionary — Public Domain; project distribution CC BY 3.0.
+           Greek dictionary — derived from public-domain Strong's; CC BY 3.0 per repo.
+  Attribution: OpenScriptures contributors.
+
+--------------------------------------------------------------------
+CROSS-REFERENCES
+--------------------------------------------------------------------
+
+Treasury-of-Scripture-style cross references (~344,800)
+  Source : OpenBible.info (https://www.openbible.info/labs/cross-references/)
+  License: CC BY (© Viz.Bible / OpenBible.info). Attribution: openbible.info.
+
+--------------------------------------------------------------------
+SEMANTIC EMBEDDINGS
+--------------------------------------------------------------------
+
+Embedding model: BAAI/bge-m3 (https://huggingface.co/BAAI/bge-m3), MIT license,
+served at query/build time via DeepInfra's OpenAI-compatible endpoint.
+Precomputed vectors in data/embeddings/*.bin are derived from the public texts above.
+
+--------------------------------------------------------------------
+EXCLUDED
+--------------------------------------------------------------------
+
+SBLGNT (SBL Greek New Testament) is NOT bundled. Although the SBLGNT text is offered
+under CC BY 4.0, its older EULA carries a restriction on Greek–English diglot/interlinear
+distribution; to stay unambiguous, mcp-bible omits it. The Berean Greek NT (CC0) is used
+instead. If a critical-text comparison is ever needed, it should be added as a separate
+user-selected module, not bundled here.
