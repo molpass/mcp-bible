@@ -3,6 +3,7 @@ dist/
 dist-scripts/
 data/sources/
 data/embeddings/
+data/bible.sqlite*
 data/local/*.json
 *.token
 *.log
