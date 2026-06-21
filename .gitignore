@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-scripts/
+data/sources/
+data/embeddings/
+data/local/*.json
+*.token
+*.log
+.DS_Store
