@@ -6,5 +6,7 @@ data/embeddings/
 data/bible.sqlite*
 data/local/*.json
 *.token
+.env
+.env.*
 *.log
 .DS_Store
