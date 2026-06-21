@@ -43,7 +43,7 @@ const RAW: Raw[] = [
   ["PSA", "Psalms", "시편", 150, ["Ps", "Psa", "Psalm"], ["시"]],
   ["PRO", "Proverbs", "잠언", 31, ["Prov", "Pr"], ["잠"]],
   ["ECC", "Ecclesiastes", "전도서", 12, ["Eccl", "Ec"], ["전"]],
-  ["SNG", "Song of Songs", "아가", 8, ["Song", "SoS", "Canticles"], ["아"]],
+  ["SNG", "Song of Songs", "아가", 8, ["Song", "SoS", "Canticles", "Song of Solomon", "Canticle of Canticles"], ["아"]],
   ["ISA", "Isaiah", "이사야", 66, ["Isa", "Is"], ["사"]],
   ["JER", "Jeremiah", "예레미야", 52, ["Jer", "Je"], ["렘"]],
   ["LAM", "Lamentations", "예레미야애가", 5, ["Lam", "La"], ["애"]],
@@ -199,4 +199,10 @@ export function osisToVerseId(osisRef: string): string | null {
 // Book ordinal (1..66, as used by getbible "nr") → USFM id. undefined if out of range.
 export function ordToId(ord: number): string | undefined {
   return BOOKS[ord - 1]?.id;
+}
+
+// Resolve any known book name/abbreviation (en/ko, spaces/dots ignored) → USFM id.
+// Use for name-keyed sources (e.g. scrollmapper KJV "Genesis", "Song of Solomon", "1 Samuel").
+export function idByName(name: string): string | undefined {
+  return ALIAS.get(norm(name));
 }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseRef, formatRef, BOOKS, bookById, osisToVerseId, osisBookToId, ordToId } from "../dist/verse-id.js";
+import { parseRef, formatRef, BOOKS, bookById, osisToVerseId, osisBookToId, ordToId, idByName } from "../dist/verse-id.js";
 
 test("66 books in canonical order", () => {
   assert.equal(BOOKS.length, 66);
@@ -88,4 +88,13 @@ test("ordToId (getbible nr)", () => {
   assert.equal(ordToId(43), "JHN");
   assert.equal(ordToId(66), "REV");
   assert.equal(ordToId(67), undefined);
+});
+
+test("idByName resolves en/ko names incl variants", () => {
+  assert.equal(idByName("Genesis"), "GEN");
+  assert.equal(idByName("1 Samuel"), "1SA");
+  assert.equal(idByName("Song of Solomon"), "SNG"); // KJV name variant
+  assert.equal(idByName("요한복음"), "JHN");
+  assert.equal(idByName("Psalms"), "PSA");
+  assert.equal(idByName("nope"), undefined);
 });
