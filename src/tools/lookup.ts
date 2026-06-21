@@ -2,6 +2,7 @@
 import { getDb, getLocalDir, allRows, getRow } from "../db.js";
 import { parseRef, formatRef } from "../verse-id.js";
 import { defaultVersion } from "../corpus-loader/registry.js";
+import { isLocalVersion, getLocalVerse } from "../corpus-loader/local.js";
 import type { ToolResult } from "./types.js";
 
 interface LookupArgs {
@@ -104,16 +105,36 @@ export function runLookup(args: LookupArgs): ToolResult {
 
     // Fetch text for each version.
     for (const versionId of requestedVersions) {
-      const verseRow = getRow(
-        `SELECT v.text, ver.name FROM verses v
-         JOIN versions ver ON ver.version_id = v.version_id
-         WHERE v.version_id = ? AND v.verse_id = ?`,
-        versionId, verseId
-      );
-      if (!verseRow) {
-        parts.push(`  [${versionId}: 해당 구절 없음]`);
+      if (isLocalVersion(versionId)) {
+        const localText = getLocalVerse(versionId, verseId);
+        if (localText !== null) {
+          parts.push(`  ${formatRef(verseId)} (${versionId}): ${localText}`);
+        } else {
+          // Fall back to 개역한글 (krv) for any verse missing from the local file.
+          const fallback = getRow(
+            `SELECT v.text, ver.name FROM verses v
+             JOIN versions ver ON ver.version_id = v.version_id
+             WHERE v.version_id = 'krv' AND v.verse_id = ?`,
+            verseId
+          );
+          if (fallback) {
+            parts.push(`  ${formatRef(verseId)} (${versionId} → 개역한글 본문): ${fallback.text}`);
+          } else {
+            parts.push(`  [${versionId}: 해당 구절 없음]`);
+          }
+        }
       } else {
-        parts.push(`  ${formatRef(verseId)} (${verseRow.name}): ${verseRow.text}`);
+        const verseRow = getRow(
+          `SELECT v.text, ver.name FROM verses v
+           JOIN versions ver ON ver.version_id = v.version_id
+           WHERE v.version_id = ? AND v.verse_id = ?`,
+          versionId, verseId
+        );
+        if (!verseRow) {
+          parts.push(`  [${versionId}: 해당 구절 없음]`);
+        } else {
+          parts.push(`  ${formatRef(verseId)} (${verseRow.name}): ${verseRow.text}`);
+        }
       }
     }
 
