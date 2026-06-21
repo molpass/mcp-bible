@@ -50,7 +50,7 @@ const RAW: Raw[] = [
   ["EZK", "Ezekiel", "에스겔", 48, ["Ezek", "Eze"], ["겔"]],
   ["DAN", "Daniel", "다니엘", 12, ["Dan", "Da"], ["단"]],
   ["HOS", "Hosea", "호세아", 14, ["Hos", "Ho"], ["호"]],
-  ["JOL", "Joel", "요엘", 3, ["Joel", "Joe"], ["욜"]],
+  ["JOL", "Joel", "요엘", 4, ["Joel", "Joe"], ["욜"]],
   ["AMO", "Amos", "아모스", 9, ["Amos", "Am"], ["암"]],
   ["OBA", "Obadiah", "오바댜", 1, ["Obad", "Ob"], ["옵"]],
   ["JON", "Jonah", "요나", 4, ["Jonah", "Jon"], ["욘"]],

@@ -14,7 +14,7 @@
     "build": "tsc",
     "build:scripts": "tsc -p tsconfig.scripts.json",
     "fetch": "npm run build:scripts && node dist-scripts/fetch-sources.js",
-    "build:db": "npm run build:scripts && node dist-scripts/build-db.js",
+    "build:db": "npm run build && npm run build:scripts && node dist-scripts/build-db.js",
     "build:embeddings": "npm run build:scripts && node dist-scripts/build-embeddings.js",
     "start": "node dist/index.js",
     "example": "node examples/run-examples.mjs",
