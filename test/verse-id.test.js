@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseRef, formatRef, BOOKS, bookById } from "../dist/verse-id.js";
+import { parseRef, formatRef, BOOKS, bookById, osisToVerseId, osisBookToId, ordToId } from "../dist/verse-id.js";
 
 test("66 books in canonical order", () => {
   assert.equal(BOOKS.length, 66);
@@ -65,4 +65,27 @@ test("bookById lookup", () => {
 test("formatRef", () => {
   assert.equal(formatRef("JHN.3.16"), "John 3:16");
   assert.equal(formatRef("JHN.3.16", "ko"), "요한복음 3:16");
+});
+
+test("osisToVerseId maps OSIS codes to USFM", () => {
+  assert.equal(osisToVerseId("Gen.1.1"), "GEN.1.1");
+  assert.equal(osisToVerseId("Ps.23.1"), "PSA.23.1");
+  assert.equal(osisToVerseId("1Cor.13.4"), "1CO.13.4");
+  assert.equal(osisToVerseId("1John.4.8"), "1JN.4.8");
+  assert.equal(osisToVerseId("Phlm.1.6"), "PHM.1.6");
+  assert.equal(osisToVerseId("Song.2.1"), "SNG.2.1");
+  assert.equal(osisToVerseId("Zzz.1.1"), null);
+});
+
+test("osisBookToId", () => {
+  assert.equal(osisBookToId("Matt"), "MAT");
+  assert.equal(osisBookToId("GEN"), "GEN"); // USFM self-map
+  assert.equal(osisBookToId("nope"), undefined);
+});
+
+test("ordToId (getbible nr)", () => {
+  assert.equal(ordToId(1), "GEN");
+  assert.equal(ordToId(43), "JHN");
+  assert.equal(ordToId(66), "REV");
+  assert.equal(ordToId(67), undefined);
 });

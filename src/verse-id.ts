@@ -165,3 +165,38 @@ export function formatRef(verseId: string, lang: "en" | "ko" = "en"): string {
   const name = lang === "ko" ? b.ko : b.en;
   return `${name} ${parts[1]}:${parts[2]}`;
 }
+
+// --- OSIS interop (for normalizing external datasets: morphhb, OpenBible xrefs, etc.) ---
+// OSIS standard book codes, parallel to BOOKS order. Differ from our USFM ids (e.g. Ps↔PSA, 1Cor↔1CO).
+const OSIS_CODES = [
+  "Gen", "Exod", "Lev", "Num", "Deut", "Josh", "Judg", "Ruth", "1Sam", "2Sam",
+  "1Kgs", "2Kgs", "1Chr", "2Chr", "Ezra", "Neh", "Esth", "Job", "Ps", "Prov",
+  "Eccl", "Song", "Isa", "Jer", "Lam", "Ezek", "Dan", "Hos", "Joel", "Amos",
+  "Obad", "Jonah", "Mic", "Nah", "Hab", "Zeph", "Hag", "Zech", "Mal", "Matt",
+  "Mark", "Luke", "John", "Acts", "Rom", "1Cor", "2Cor", "Gal", "Eph", "Phil",
+  "Col", "1Thess", "2Thess", "1Tim", "2Tim", "Titus", "Phlm", "Heb", "Jas", "1Pet",
+  "2Pet", "1John", "2John", "3John", "Jude", "Rev",
+];
+
+const OSIS_TO_ID = new Map<string, string>();
+OSIS_CODES.forEach((code, i) => OSIS_TO_ID.set(code.toLowerCase(), BOOKS[i].id));
+for (const b of BOOKS) OSIS_TO_ID.set(b.id.toLowerCase(), b.id); // USFM id self-maps too
+
+// OSIS book code (e.g. "Gen", "1Cor", "Ps") or USFM id → USFM id ("GEN","1CO","PSA").
+export function osisBookToId(osisBook: string): string | undefined {
+  return OSIS_TO_ID.get(osisBook.toLowerCase());
+}
+
+// "Gen.1.1" / "1Cor.13.4" / "Ps.23.1" → "GEN.1.1" / "1CO.13.4" / "PSA.23.1". null if unknown book.
+export function osisToVerseId(osisRef: string): string | null {
+  const m = /^([1-3]?[A-Za-z]+)\.(\d+)\.(\d+)/.exec(osisRef.trim());
+  if (!m) return null;
+  const id = OSIS_TO_ID.get(m[1].toLowerCase());
+  if (!id) return null;
+  return `${id}.${Number(m[2])}.${Number(m[3])}`;
+}
+
+// Book ordinal (1..66, as used by getbible "nr") → USFM id. undefined if out of range.
+export function ordToId(ord: number): string | undefined {
+  return BOOKS[ord - 1]?.id;
+}
